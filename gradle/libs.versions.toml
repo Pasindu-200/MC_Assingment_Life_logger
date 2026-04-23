@@ -11,13 +11,14 @@ junitVersion = "1.2.1"
 espressoCore = "3.6.1"
 room = "2.6.1"
 kotlinxCoroutines = "1.9.0"
-#supabase = "2.6.1"
-#ktor = "2.3.12"
+supabase = "2.6.1"
+ktor = "2.3.12"
 navigationCompose = "2.8.0"
 cameraX = "1.4.0"
 accompanist = "0.36.0"
 kotlinxSerialization = "1.7.3"
 datastore = "1.1.2"
+work = "2.9.0"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -45,20 +46,24 @@ androidx-room-runtime = { group = "androidx.room", name = "room-runtime", versio
 androidx-room-ktx = { group = "androidx.room", name = "room-ktx", version.ref = "room" }
 androidx-room-compiler = { group = "androidx.room", name = "room-compiler", version.ref = "room" }
 
+# WorkManager
+androidx-work-runtime-ktx = { group = "androidx.work", name = "work-runtime-ktx", version.ref = "work" }
+
 # Coroutines + Serialization
 kotlinx-coroutines-android = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-android", version.ref = "kotlinxCoroutines" }
 kotlinx-serialization-json = { group = "org.jetbrains.kotlinx", name = "kotlinx-serialization-json", version.ref = "kotlinxSerialization" }
 
-# Supabase (modular - more reliable than single artifact)
-#supabase-bom = { group = "io.github.jan-tennert.supabase", name = "bom", version.ref = "supabase" }
-#supabase-postgrest = { group = "io.github.jan-tennert.supabase", name = "postgrest-kt" }
-#supabase-gotrue = { group = "io.github.jan-tennert.supabase", name = "gotrue-kt" }  # ← Changed from auth-kt
-#supabase-storage = { group = "io.github.jan-tennert.supabase", name = "storage-kt" }
+# Supabase
+supabase-bom = { group = "io.github.jan-tennert.supabase", name = "bom", version.ref = "supabase" }
+supabase-kt = { group = "io.github.jan-tennert.supabase", name = "supabase-kt", version.ref = "supabase" }
+supabase-postgrest = { group = "io.github.jan-tennert.supabase", name = "postgrest-kt", version.ref = "supabase" }
+supabase-gotrue = { group = "io.github.jan-tennert.supabase", name = "gotrue-kt", version.ref = "supabase" }
+supabase-storage = { group = "io.github.jan-tennert.supabase", name = "storage-kt", version.ref = "supabase" }
 
-# Ktor engine (required by supabase-kt)
-#ktor-client-android = { group = "io.ktor", name = "ktor-client-android", version.ref = "ktor" }
-#ktor-client-content-negotiation = { group = "io.ktor", name = "ktor-client-content-negotiation", version.ref = "ktor" }
-#ktor-serialization-kotlinx-json = { group = "io.ktor", name = "ktor-serialization-kotlinx-json", version.ref = "ktor" }
+# Ktor engine
+ktor-client-android = { group = "io.ktor", name = "ktor-client-android", version.ref = "ktor" }
+ktor-client-content-negotiation = { group = "io.ktor", name = "ktor-client-content-negotiation", version.ref = "ktor" }
+ktor-serialization-kotlinx-json = { group = "io.ktor", name = "ktor-serialization-kotlinx-json", version.ref = "ktor" }
 
 # CameraX
 androidx-camera-camera2 = { group = "androidx.camera", name = "camera-camera2", version.ref = "cameraX" }

@@ -18,7 +18,6 @@ android {
         versionName = "1.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
-        // Required for Room schema export (prevents kapt warnings)
         javaCompileOptions {
             annotationProcessorOptions {
                 arguments["room.schemaLocation"] = "$projectDir/schemas".toString()
@@ -68,25 +67,30 @@ dependencies {
     // Navigation
     implementation(libs.androidx.navigation.compose)
 
-    // Room - NOTE: compiler uses kapt, not implementation
+    // Room
     implementation(libs.androidx.room.runtime)
     implementation(libs.androidx.room.ktx)
-    kapt(libs.androidx.room.compiler)  // ← Must be kapt, not implementation
+    kapt(libs.androidx.room.compiler)
+
+    // WorkManager
+    implementation(libs.androidx.work.runtime.ktx)
 
     // Coroutines + Serialization
     implementation(libs.kotlinx.coroutines.android)
     implementation(libs.kotlinx.serialization.json)
 
-    // Supabase (2.6.1 - minSdk 24 compatible)
-    // implementation(platform(libs.supabase.bom))
-    // implementation(libs.supabase.postgrest)
-    // implementation(libs.supabase.gotrue)
-    // implementation(libs.supabase.storage)
+    // Supabase - Hardcoded to ensure resolution
+    val supabase_version = "2.6.1"
+    implementation("io.github.jan-tennert.supabase:supabase-kt:$supabase_version")
+    implementation("io.github.jan-tennert.supabase:postgrest-kt:$supabase_version")
+    implementation("io.github.jan-tennert.supabase:gotrue-kt:$supabase_version")
+    implementation("io.github.jan-tennert.supabase:storage-kt:$supabase_version")
 
-    // Ktor engine (required for supabase-kt on Android)
-    // implementation(libs.ktor.client.android)
-    // implementation(libs.ktor.client.content.negotiation)
-    // implementation(libs.ktor.serialization.kotlinx.json)
+    // Ktor (Required for Supabase)
+    val ktor_version = "2.3.12"
+    implementation("io.ktor:ktor-client-android:$ktor_version")
+    implementation("io.ktor:ktor-client-content-negotiation:$ktor_version")
+    implementation("io.ktor:ktor-serialization-kotlinx-json:$ktor_version")
 
     // CameraX
     implementation(libs.androidx.camera.camera2)
@@ -101,11 +105,10 @@ dependencies {
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
 
-    // DataStore for persistent settings (theme, user prefs)
+    // DataStore
     implementation(libs.androidx.datastore.preferences)
 }
 
-// Ensure kapt runs after Kotlin compilation
 kapt {
     correctErrorTypes = true
     useBuildCache = true

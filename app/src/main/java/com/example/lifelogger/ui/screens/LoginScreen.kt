@@ -16,6 +16,9 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import com.example.lifelogger.R
+import com.example.lifelogger.data.supabase.SupabaseClient
+import io.github.jan.supabase.gotrue.providers.builtin.Email
+import kotlinx.coroutines.launch
 
 @Composable
 fun LoginScreen(
@@ -25,11 +28,14 @@ fun LoginScreen(
 ) {
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
-
+    var isLoading by remember { mutableStateOf(false) }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
+    
+    val scope = rememberCoroutineScope()
     val darkBrown = Color(0xFF3E2723)
 
     Box(modifier = modifier.fillMaxSize()) {
-        // Background Image with original colors
+        // Background Image
         Image(
             painter = painterResource(id = R.drawable.front_bg),
             contentDescription = null,
@@ -104,33 +110,90 @@ fun LoginScreen(
                     )
                 )
 
-                Spacer(modifier = Modifier.height(8.dp))
-
-                // "Sign In" as a plain clickable word under the password field
-                TextButton(
-                    onClick = {
-                        if (email.isNotBlank() && password.isNotBlank()) {
-                            onLoginSuccess("demo-user-${System.currentTimeMillis()}")
-                        }
-                    },
-                    modifier = Modifier.fillMaxWidth(),
-                    enabled = email.isNotBlank() && password.isNotBlank()
-                ) {
+                if (errorMessage != null) {
                     Text(
-                        text = "Sign In",
-                        color = darkBrown,
-                        fontWeight = FontWeight.Bold,
-                        style = MaterialTheme.typography.titleMedium,
-                        fontFamily = FontFamily.Serif
+                        text = errorMessage!!,
+                        color = Color.Red,
+                        style = MaterialTheme.typography.bodySmall,
+                        modifier = Modifier.padding(top = 8.dp)
                     )
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                if (isLoading) {
+                    CircularProgressIndicator(color = darkBrown)
+                } else {
+                    Row(modifier = Modifier.fillMaxWidth()) {
+                        // Sign In Button
+                        TextButton(
+                            onClick = {
+                                scope.launch {
+                                    isLoading = true
+                                    errorMessage = null
+                                    try {
+                                        SupabaseClient.auth.signInWith(Email) {
+                                            this.email = email
+                                            this.password = password
+                                        }
+                                        val user = SupabaseClient.auth.currentUserOrNull()
+                                        onLoginSuccess(user?.id)
+                                    } catch (e: Exception) {
+                                        errorMessage = "Login failed: ${e.message}"
+                                    } finally {
+                                        isLoading = false
+                                    }
+                                }
+                            },
+                            modifier = Modifier.weight(1f),
+                            enabled = email.isNotBlank() && password.isNotBlank()
+                        ) {
+                            Text(
+                                text = "Sign In",
+                                color = darkBrown,
+                                fontWeight = FontWeight.Bold,
+                                style = MaterialTheme.typography.titleMedium,
+                                fontFamily = FontFamily.Serif
+                            )
+                        }
+
+                        // Sign Up Button
+                        TextButton(
+                            onClick = {
+                                scope.launch {
+                                    isLoading = true
+                                    errorMessage = null
+                                    try {
+                                        SupabaseClient.auth.signUpWith(Email) {
+                                            this.email = email
+                                            this.password = password
+                                        }
+                                        errorMessage = "Check your email for confirmation!"
+                                    } catch (e: Exception) {
+                                        errorMessage = "Sign up failed: ${e.message}"
+                                    } finally {
+                                        isLoading = false
+                                    }
+                                }
+                            },
+                            modifier = Modifier.weight(1f),
+                            enabled = email.isNotBlank() && password.isNotBlank()
+                        ) {
+                            Text(
+                                text = "Sign Up",
+                                color = darkBrown,
+                                fontWeight = FontWeight.Bold,
+                                style = MaterialTheme.typography.titleMedium,
+                                fontFamily = FontFamily.Serif
+                            )
+                        }
+                    }
                 }
 
                 Spacer(modifier = Modifier.height(12.dp))
 
                 TextButton(
-                    onClick = {
-                        onSkip()
-                    },
+                    onClick = { onSkip() },
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Text("Continue without account", color = Color.Black)
@@ -138,7 +201,7 @@ fun LoginScreen(
 
                 Spacer(modifier = Modifier.height(32.dp))
                 Text(
-                    text = "• Demo mode: Entries stored locally\n• Cloud sync can be enabled later",
+                    text = "• Entries stored locally\n• Cloud sync when logged in",
                     style = MaterialTheme.typography.labelSmall,
                     color = darkBrown.copy(alpha = 0.6f)
                 )

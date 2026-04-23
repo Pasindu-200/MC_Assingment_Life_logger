@@ -12,6 +12,7 @@ class LifeLoggerApp : Application() {
 
     override fun onCreate() {
         super.onCreate()
-        // Supabase is initialized in MainActivity to have Context
+        // Initialize Supabase here so it's available for WorkManager even if MainActivity isn't open
+        SupabaseClient.init(this)
     }
 }

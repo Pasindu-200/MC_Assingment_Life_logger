@@ -1,21 +1,23 @@
 package com.example.lifelogger.ui.viewmodel
 
-import androidx.lifecycle.ViewModel
+import android.app.Application
+import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import androidx.work.*
 import com.example.lifelogger.data.model.Entry
-import com.example.lifelogger.data.model.EntryDto
-import com.example.lifelogger.data.model.toDto
 import com.example.lifelogger.data.repository.EntryRepository
-import com.example.lifelogger.data.supabase.SupabaseClient
+import com.example.lifelogger.data.sync.SyncWorker
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import java.util.concurrent.TimeUnit
 
 class EntryViewModel(
+    application: Application,
     private val repository: EntryRepository
-) : ViewModel() {
+) : AndroidViewModel(application) {
 
-    // Removed the filtering by user ID for now to prevent entries from "disappearing" 
-    // when signing in or skipping login in demo mode.
+    private val workManager = WorkManager.getInstance(application)
+
     val entries: StateFlow<List<Entry>> = repository.allEntries
         .stateIn(
             scope = viewModelScope,
@@ -27,22 +29,26 @@ class EntryViewModel(
 
     fun setCurrentUser(userId: String?) {
         _currentUserId.value = userId
+        if (userId != null) {
+            scheduleSync()
+        }
     }
 
     fun addEntry(entry: Entry) {
         viewModelScope.launch {
             val entryWithUser = entry.copy(userId = _currentUserId.value)
             repository.insert(entryWithUser)
-
-            if (_currentUserId.value != null) {
-                syncEntry(entryWithUser)
-            }
+            scheduleSync()
         }
     }
 
     fun updateEntry(entry: Entry) {
         viewModelScope.launch {
-            repository.update(entry.copy(updatedAt = System.currentTimeMillis()))
+            repository.update(entry.copy(
+                updatedAt = System.currentTimeMillis(),
+                isSynced = false // Reset sync flag on update
+            ))
+            scheduleSync()
         }
     }
 
@@ -52,24 +58,33 @@ class EntryViewModel(
         }
     }
 
-    fun syncPendingEntries() {
-        viewModelScope.launch {
-            val unsynced = repository.getUnsynced()
-            unsynced.forEach { entry ->
-                repository.markSynced(entry.id, "demo-${entry.id}")
-            }
-        }
+    /**
+     * Schedules a background sync task.
+     * WorkManager will handle waiting for internet connectivity.
+     */
+    fun scheduleSync() {
+        val constraints = Constraints.Builder()
+            .setRequiredNetworkType(NetworkType.CONNECTED)
+            .build()
+
+        val syncRequest = OneTimeWorkRequestBuilder<SyncWorker>()
+            .setConstraints(constraints)
+            .setBackoffCriteria(
+                BackoffPolicy.EXPONENTIAL,
+                WorkRequest.MIN_BACKOFF_MILLIS,
+                TimeUnit.MILLISECONDS
+            )
+            .addTag("entry_sync")
+            .build()
+
+        workManager.enqueueUniqueWork(
+            "entry_sync_unique",
+            ExistingWorkPolicy.REPLACE,
+            syncRequest
+        )
     }
 
-    private suspend fun syncEntry(entry: Entry) {
-        runCatching {
-            val dto = entry.toDto()
-            val serverId = SupabaseClient.syncEntry(dto).getOrNull()
-            if (serverId != null) {
-                repository.markSynced(entry.id, serverId)
-            }
-        }.onFailure {
-            println("Sync failed for ${entry.id}: ${it.message}")
-        }
+    fun syncPendingEntries() {
+        scheduleSync()
     }
 }

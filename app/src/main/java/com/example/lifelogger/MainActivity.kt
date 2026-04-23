@@ -1,6 +1,6 @@
 package com.example.lifelogger
 
-import android.content.Context
+import android.app.Application
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -19,15 +19,16 @@ import com.example.lifelogger.navigation.AppNavGraph
 import com.example.lifelogger.ui.theme.LifeLoggerTheme
 import com.example.lifelogger.ui.viewmodel.EntryViewModel
 
-// Simple ViewModel factory for manual DI
+// Updated ViewModel factory to include Application context
 class ViewModelFactory(
+    private val application: Application,
     private val repository: EntryRepository
 ) : androidx.lifecycle.ViewModelProvider.Factory {
 
     @Suppress("UNCHECKED_CAST")
     override fun <T : androidx.lifecycle.ViewModel> create(modelClass: Class<T>): T {
         if (modelClass.isAssignableFrom(EntryViewModel::class.java)) {
-            return EntryViewModel(repository) as T
+            return EntryViewModel(application, repository) as T
         }
         throw IllegalArgumentException("Unknown ViewModel class")
     }
@@ -59,9 +60,9 @@ class MainActivity : ComponentActivity() {
                 ) {
                     val navController = rememberNavController()
 
-                    // Manual ViewModel creation with factory
+                    // Manual ViewModel creation with factory passing Application
                     val viewModel: EntryViewModel = viewModel(
-                        factory = ViewModelFactory(repository)
+                        factory = ViewModelFactory(application, repository)
                     )
 
                     AppNavGraph(
