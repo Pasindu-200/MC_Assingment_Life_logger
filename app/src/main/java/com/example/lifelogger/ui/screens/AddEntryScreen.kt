@@ -22,6 +22,7 @@ import com.example.lifelogger.data.model.Entry
 import com.example.lifelogger.data.model.EntryType
 import com.example.lifelogger.ui.components.AudioRecorder
 import com.example.lifelogger.ui.components.CameraCapture
+import com.example.lifelogger.utils.FileUtils
 
 private const val TAG = "AddEntryScreen"
 
@@ -40,22 +41,19 @@ fun AddEntryScreen(
     var showCamera by remember { mutableStateOf(false) }
     var showRecorder by remember { mutableStateOf(false) }
 
-    // ← FIX: Snackbar state managed via Scaffold, not called in callbacks
     val snackbarHostState = remember { SnackbarHostState() }
     var snackbarMessage by remember { mutableStateOf<String?>(null) }
 
     val context = LocalContext.current
     val scrollState = rememberScrollState()
 
-    // Permission launchers - NO composables inside callbacks
+    // Permission launchers
     val cameraPermissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { granted ->
-        Log.d(TAG, "Camera permission: $granted")
         if (granted) {
             showCamera = true
         } else {
-            // ← FIX: Set message, don't call Snackbar composable here
             snackbarMessage = "Camera permission required"
         }
     }
@@ -63,12 +61,19 @@ fun AddEntryScreen(
     val audioPermissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { granted ->
-        Log.d(TAG, "Audio permission: $granted")
         if (granted) {
             showRecorder = true
         } else {
-            // ← FIX: Set message, don't call Snackbar composable here
             snackbarMessage = "Microphone permission required"
+        }
+    }
+
+    val galleryLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.GetContent()
+    ) { uri ->
+        uri?.let {
+            val path = FileUtils.copyUriToInternalStorage(context, it, "IMG")
+            capturedImagePath = path
         }
     }
 
@@ -76,12 +81,11 @@ fun AddEntryScreen(
     LaunchedEffect(snackbarMessage) {
         snackbarMessage?.let { message ->
             snackbarHostState.showSnackbar(message)
-            snackbarMessage = null  // Clear after showing
+            snackbarMessage = null
         }
     }
 
     fun requestCamera() {
-        Log.d(TAG, "Requesting camera")
         when {
             ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) ==
                 PackageManager.PERMISSION_GRANTED -> {
@@ -94,7 +98,6 @@ fun AddEntryScreen(
     }
 
     fun requestAudio() {
-        Log.d(TAG, "Requesting audio")
         when {
             ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) ==
                 PackageManager.PERMISSION_GRANTED -> {
@@ -108,9 +111,9 @@ fun AddEntryScreen(
 
     // Main content
     if (!showCamera && !showRecorder) {
-        Scaffold(  // ← FIX: Add snackbarHost parameter
+        Scaffold(
             modifier = modifier,
-            snackbarHost = { SnackbarHost(snackbarHostState) },  // ← FIX: Proper Snackbar host
+            snackbarHost = { SnackbarHost(snackbarHostState) },
             topBar = {
                 TopAppBar(
                     title = { Text("New Entry") },
@@ -176,15 +179,19 @@ fun AddEntryScreen(
 
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     FilterChip(
+                        selected = false,
+                        onClick = { requestCamera() },
+                        label = { Text("📷 Camera") },
+                        enabled = capturedImagePath == null && capturedAudioPath == null
+                    )
+
+                    FilterChip(
                         selected = capturedImagePath != null,
-                        onClick = {
-                            Log.d(TAG, "Camera chip clicked")
-                            requestCamera()
-                        },
-                        label = { Text("📷 Photo") },
+                        onClick = { galleryLauncher.launch("image/*") },
+                        label = { Text("🖼️ Photo") },
                         leadingIcon = if (capturedImagePath != null) {
                             { Icon(Icons.Default.Check, contentDescription = null) }
                         } else null,
@@ -193,10 +200,7 @@ fun AddEntryScreen(
 
                     FilterChip(
                         selected = capturedAudioPath != null,
-                        onClick = {
-                            Log.d(TAG, "Audio chip clicked")
-                            requestAudio()
-                        },
+                        onClick = { requestAudio() },
                         label = { Text("🎤 Voice") },
                         leadingIcon = if (capturedAudioPath != null) {
                             { Icon(Icons.Default.Check, contentDescription = null) }
@@ -205,7 +209,7 @@ fun AddEntryScreen(
                     )
                 }
 
-                capturedImagePath?.let { path ->
+                capturedImagePath?.let { _ ->
                     Surface(
                         modifier = Modifier.fillMaxWidth(),
                         shape = MaterialTheme.shapes.medium,
@@ -217,7 +221,7 @@ fun AddEntryScreen(
                         ) {
                             Text("🖼️ ", fontSize = MaterialTheme.typography.bodyLarge.fontSize)
                             Text(
-                                text = "Image captured",
+                                text = "Image attached",
                                 style = MaterialTheme.typography.bodyMedium,
                                 modifier = Modifier.weight(1f)
                             )
@@ -228,7 +232,7 @@ fun AddEntryScreen(
                     }
                 }
 
-                capturedAudioPath?.let { path ->
+                capturedAudioPath?.let { _ ->
                     Surface(
                         modifier = Modifier.fillMaxWidth(),
                         shape = MaterialTheme.shapes.medium,
@@ -254,17 +258,13 @@ fun AddEntryScreen(
         }
     }
 
-    // Camera/Audio overlays - outside Scaffold, still in @Composable function ✅
     if (showCamera) {
-        Log.d(TAG, "Showing CameraCapture")
         CameraCapture(
             onImageCaptured = { path ->
-                Log.d(TAG, "Image captured: $path")
                 capturedImagePath = path
                 showCamera = false
             },
             onDismiss = {
-                Log.d(TAG, "Camera dismissed")
                 showCamera = false
             },
             modifier = Modifier.fillMaxSize()
@@ -272,15 +272,12 @@ fun AddEntryScreen(
     }
 
     if (showRecorder) {
-        Log.d(TAG, "Showing AudioRecorder")
         AudioRecorder(
             onAudioRecorded = { path ->
-                Log.d(TAG, "Audio recorded: $path")
                 capturedAudioPath = path
                 showRecorder = false
             },
             onDismiss = {
-                Log.d(TAG, "Recorder dismissed")
                 showRecorder = false
             },
             modifier = Modifier.fillMaxSize()

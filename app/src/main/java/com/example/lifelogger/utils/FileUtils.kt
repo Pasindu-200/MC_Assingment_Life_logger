@@ -1,7 +1,10 @@
 package com.example.lifelogger.utils
 
 import android.content.Context
+import android.net.Uri
 import java.io.File
+import java.io.FileOutputStream
+import java.io.InputStream
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -18,7 +21,6 @@ object FileUtils {
         return "${prefix}_${timestamp}.${extension}"
     }
 
-    // ← FIX: Add explicit (data: ByteArray) type
     fun saveImage(context: Context, data: ByteArray): String {
         val dir = getAttachmentsDir(context)
         val filename = generateFilename("IMG", "jpg")
@@ -27,13 +29,33 @@ object FileUtils {
         return "file://${file.absolutePath}"
     }
 
-    // ← FIX: Add explicit (data: ByteArray) type
     fun saveAudio(context: Context, data: ByteArray): String {
         val dir = getAttachmentsDir(context)
         val filename = generateFilename("AUD", "m4a")
         val file = File(dir, filename)
         file.writeBytes(data)
         return "file://${file.absolutePath}"
+    }
+
+    fun copyUriToInternalStorage(context: Context, uri: Uri, prefix: String): String? {
+        return try {
+            val extension = context.contentResolver.getType(uri)?.split("/")?.lastOrNull() ?: "jpg"
+            val filename = generateFilename(prefix, extension)
+            val file = File(getAttachmentsDir(context), filename)
+            
+            val inputStream: InputStream? = context.contentResolver.openInputStream(uri)
+            val outputStream = FileOutputStream(file)
+            
+            inputStream?.use { input ->
+                outputStream.use { output ->
+                    input.copyTo(output)
+                }
+            }
+            "file://${file.absolutePath}"
+        } catch (e: Exception) {
+            e.printStackTrace()
+            null
+        }
     }
 
     fun loadImage(path: String): ByteArray? {
