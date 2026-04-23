@@ -45,9 +45,15 @@ object FileUtils {
 
     fun loadAudio(path: String): ByteArray? {
         return try {
-            val file = File(path.removePrefix("file://"))
-            if (file.exists()) file.readBytes() else null
-        } catch (e: Exception) { null }
+            val file = java.io.File(path.removePrefix("file://"))
+            if (file.exists() && file.canRead()) {
+                file.readBytes()
+            } else {
+                null
+            }
+        } catch (e: Exception) {
+            null
+        }
     }
 
     fun deleteAttachment(path: String): Boolean {

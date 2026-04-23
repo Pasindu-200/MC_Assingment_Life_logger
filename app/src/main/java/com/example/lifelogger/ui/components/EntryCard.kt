@@ -1,26 +1,34 @@
 package com.example.lifelogger.ui.components
 
-import androidx.compose.ui.text.font.FontWeight
+import android.media.MediaPlayer
+import android.util.Log
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Audiotrack
+import androidx.compose.material.icons.filled.Pause
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.example.lifelogger.data.model.Entry
 import com.example.lifelogger.data.model.EntryType
+import com.example.lifelogger.utils.FileUtils
 import java.text.SimpleDateFormat
 import java.util.*
-import androidx.compose.foundation.Image
-import androidx.compose.ui.graphics.asImageBitmap
-import androidx.compose.ui.graphics.asAndroidBitmap
-import android.graphics.BitmapFactory
-import com.example.lifelogger.utils.FileUtils
+
+private const val TAG = "EntryCard"
 
 @Composable
 fun EntryCard(
@@ -37,7 +45,7 @@ fun EntryCard(
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
-            // Header: Type badge + date
+            // Header
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -65,7 +73,7 @@ fun EntryCard(
                 Spacer(modifier = Modifier.height(4.dp))
             }
 
-            // Content preview
+            // Content
             if (entry.content.isNotBlank()) {
                 Text(
                     text = entry.content,
@@ -76,23 +84,126 @@ fun EntryCard(
                 )
             }
 
-            // Attachments indicator
-            if (entry.imagePath != null || entry.audioPath != null) {
+            // Image preview
+            entry.imagePath?.let { path ->
                 Spacer(modifier = Modifier.height(8.dp))
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    if (entry.imagePath != null) {
-                        AttachmentChip("🖼️ Image")
-                    }
-                    if (entry.audioPath != null) {
-                        AttachmentChip("🎵 Audio")
-                    }
-                }
+                ImagePreview(path)
             }
 
-            if (entry.imagePath != null) {
+            // Audio player
+            entry.audioPath?.let { path ->
                 Spacer(modifier = Modifier.height(8.dp))
-                ImagePreview(entry.imagePath)
+                AudioPlayer(audioPath = path)
             }
+        }
+    }
+}
+
+@Composable
+private fun AudioPlayer(audioPath: String, modifier: Modifier = Modifier) {
+    val context = LocalContext.current
+    var mediaPlayer by remember { mutableStateOf<MediaPlayer?>(null) }
+    var isPlaying by remember { mutableStateOf(false) }
+    var duration by remember { mutableStateOf(0) }
+    var currentPosition by remember { mutableStateOf(0) }
+
+    LaunchedEffect(audioPath) {
+        try {
+            val path = audioPath.removePrefix("file://")
+            mediaPlayer = MediaPlayer().apply {
+                setDataSource(path)
+                prepare()
+                duration = this.duration
+                setOnCompletionListener {
+                    isPlaying = false
+                    currentPosition = 0
+                }
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to load audio: ${e.message}")
+        }
+    }
+
+    LaunchedEffect(isPlaying) {
+        if (isPlaying && mediaPlayer != null) {
+            while (isPlaying && mediaPlayer?.isPlaying == true) {
+                currentPosition = mediaPlayer?.currentPosition ?: 0
+                kotlinx.coroutines.delay(100)
+            }
+        }
+    }
+
+    DisposableEffect(Unit) {
+        onDispose {
+            mediaPlayer?.release()
+            mediaPlayer = null
+        }
+    }
+
+    fun togglePlayback() {
+        mediaPlayer?.let { mp ->
+            if (isPlaying) {
+                mp.pause()
+                isPlaying = false
+            } else {
+                mp.start()
+                isPlaying = true
+            }
+        }
+    }
+
+    fun formatTime(ms: Int): String {
+        val seconds = ms / 1000
+        return String.format("%02d:%02d", seconds / 60, seconds % 60)
+    }
+
+    Surface(
+        modifier = modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(8.dp)),
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            IconButton(
+                onClick = { togglePlayback() },
+                modifier = Modifier.size(40.dp)
+            ) {
+                Icon(
+                    imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
+                    contentDescription = if (isPlaying) "Pause" else "Play",
+                    tint = MaterialTheme.colorScheme.primary
+                )
+            }
+
+            Column(modifier = Modifier.weight(1f)) {
+                LinearProgressIndicator(
+                    progress = { if (duration > 0) currentPosition.toFloat() / duration else 0f },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(4.dp),
+                    color = MaterialTheme.colorScheme.primary,
+                    trackColor = MaterialTheme.colorScheme.surfaceVariant
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = "${formatTime(currentPosition)} / ${formatTime(duration)}",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                )
+            }
+
+            Icon(
+                imageVector = Icons.Default.Audiotrack,  // ← Now works with proper import
+                contentDescription = "Audio",
+                tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
+                modifier = Modifier.size(24.dp)
+            )
         }
     }
 }
@@ -121,40 +232,24 @@ private fun EntryTypeBadge(type: EntryType) {
 }
 
 @Composable
-private fun AttachmentChip(label: String) {
-    Surface(
-        shape = RoundedCornerShape(16.dp),
-        color = MaterialTheme.colorScheme.surfaceVariant,
-        modifier = Modifier
-    ) {
-        Text(
-            text = label,
-            style = MaterialTheme.typography.labelSmall,
-            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
+private fun ImagePreview(imagePath: String, modifier: Modifier = Modifier) {
+    val bitmap = FileUtils.loadImage(imagePath)?.let {
+        android.graphics.BitmapFactory.decodeByteArray(it, 0, it.size)
+    }
+
+    if (bitmap != null) {
+        Image(  // ← Now works with proper import
+            bitmap = bitmap.asImageBitmap(),  // ← Now works with proper import
+            contentDescription = "Entry image",
+            modifier = modifier
+                .fillMaxWidth()
+                .height(200.dp)
+                .clip(RoundedCornerShape(8.dp)),
+            contentScale = ContentScale.Crop  // ← Now works with proper import
         )
     }
 }
 
 private fun formatDate(timestamp: Long): String {
     return SimpleDateFormat("MMM dd, HH:mm", Locale.getDefault()).format(Date(timestamp))
-}
-
-@Composable
-private fun ImagePreview(imagePath: String?, modifier: Modifier = Modifier) {
-    imagePath?.let { path ->
-        val bitmap = FileUtils.loadImage(path)?.let {
-            BitmapFactory.decodeByteArray(it, 0, it.size)
-        }
-
-        if (bitmap != null) {
-            Image(
-                bitmap = bitmap.asImageBitmap(),
-                contentDescription = "Entry image",
-                modifier = modifier
-                    .fillMaxWidth()
-                    .height(200.dp),
-                contentScale = androidx.compose.ui.layout.ContentScale.Crop
-            )
-        }
-    }
 }
