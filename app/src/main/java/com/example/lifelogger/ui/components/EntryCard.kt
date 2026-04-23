@@ -16,6 +16,11 @@ import com.example.lifelogger.data.model.Entry
 import com.example.lifelogger.data.model.EntryType
 import java.text.SimpleDateFormat
 import java.util.*
+import androidx.compose.foundation.Image
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.asAndroidBitmap
+import android.graphics.BitmapFactory
+import com.example.lifelogger.utils.FileUtils
 
 @Composable
 fun EntryCard(
@@ -83,6 +88,11 @@ fun EntryCard(
                     }
                 }
             }
+
+            if (entry.imagePath != null) {
+                Spacer(modifier = Modifier.height(8.dp))
+                ImagePreview(entry.imagePath)
+            }
         }
     }
 }
@@ -127,4 +137,24 @@ private fun AttachmentChip(label: String) {
 
 private fun formatDate(timestamp: Long): String {
     return SimpleDateFormat("MMM dd, HH:mm", Locale.getDefault()).format(Date(timestamp))
+}
+
+@Composable
+private fun ImagePreview(imagePath: String?, modifier: Modifier = Modifier) {
+    imagePath?.let { path ->
+        val bitmap = FileUtils.loadImage(path)?.let {
+            BitmapFactory.decodeByteArray(it, 0, it.size)
+        }
+
+        if (bitmap != null) {
+            Image(
+                bitmap = bitmap.asImageBitmap(),
+                contentDescription = "Entry image",
+                modifier = modifier
+                    .fillMaxWidth()
+                    .height(200.dp),
+                contentScale = androidx.compose.ui.layout.ContentScale.Crop
+            )
+        }
+    }
 }
