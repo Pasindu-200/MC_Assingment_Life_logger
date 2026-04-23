@@ -54,6 +54,7 @@ fun AppNavGraph(
                 entries = entries,
                 onAddEntry = { navController.navigate(Screen.AddEntry.route) },
                 onEntryClick = { /* TODO: Navigate to detail screen */ },
+                onDeleteEntry = { entry -> viewModel.deleteEntry(entry) },
                 onLogout = {
                     onLogout()
                     navController.navigate(Screen.Login.route) {

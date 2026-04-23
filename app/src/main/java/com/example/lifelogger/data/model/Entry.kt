@@ -2,17 +2,21 @@ package com.example.lifelogger.data.model
 
 import androidx.room.Entity
 import androidx.room.PrimaryKey
+import androidx.room.TypeConverter
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
 import java.util.UUID
 
-// Room Entity - keep Room annotations separate from serialization
+// Room Entity - updated to support multiple images
 @Entity(tableName = "entries")
 data class Entry(
     @PrimaryKey val id: String = UUID.randomUUID().toString(),
     val title: String,
     val content: String,
     val entryType: EntryType,
-    val imagePath: String? = null,
+    val tag: String? = null,
+    val imagePaths: List<String> = emptyList(), // Changed to List
     val audioPath: String? = null,
     val createdAt: Long = System.currentTimeMillis(),
     val updatedAt: Long = System.currentTimeMillis(),
@@ -20,6 +24,19 @@ data class Entry(
     val serverId: String? = null,
     val userId: String? = null
 )
+
+// Converters for Room to handle List<String> using kotlinx.serialization
+class Converters {
+    @TypeConverter
+    fun fromStringList(value: List<String>): String {
+        return Json.encodeToString(value)
+    }
+
+    @TypeConverter
+    fun toStringList(value: String): List<String> {
+        return Json.decodeFromString(value)
+    }
+}
 
 // Separate serializable model for Supabase (avoids kapt conflicts)
 @Serializable
@@ -29,7 +46,8 @@ data class EntryDto(
     val title: String?,
     val content: String,
     val entry_type: String,
-    val image_url: String?,
+    val tag: String?,
+    val image_urls: List<String>, // Updated for multiple images
     val audio_url: String?,
     val created_at: String,
     val updated_at: String
@@ -48,7 +66,8 @@ fun Entry.toDto(): EntryDto {
         title = title.takeIf { it.isNotBlank() },
         content = content,
         entry_type = entryType.name,
-        image_url = imagePath,
+        tag = tag,
+        image_urls = imagePaths,
         audio_url = audioPath,
         created_at = java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", java.util.Locale.US)
             .format(java.util.Date(createdAt)),
@@ -63,7 +82,8 @@ fun EntryDto.toEntity(userId: String? = null): Entry {
         title = title ?: "",
         content = content,
         entryType = EntryType.valueOf(entry_type),
-        imagePath = image_url,
+        tag = tag,
+        imagePaths = image_urls,
         audioPath = audio_url,
         isSynced = true,
         serverId = id,

@@ -5,9 +5,11 @@ import com.example.lifelogger.data.model.Entry
 import kotlinx.coroutines.flow.Flow
 
 class EntryRepository(
-    private val entryDao: EntryDao  // ← Plain constructor, no @Inject
+    private val entryDao: EntryDao
 ) {
     val allEntries: Flow<List<Entry>> = entryDao.getAllEntries()
+
+    fun getEntriesByUser(userId: String): Flow<List<Entry>> = entryDao.getEntriesByUser(userId)
 
     suspend fun insert(entry: Entry) = entryDao.insertEntry(entry)
     suspend fun update(entry: Entry) = entryDao.updateEntry(entry)

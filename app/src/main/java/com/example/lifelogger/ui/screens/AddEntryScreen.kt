@@ -5,8 +5,14 @@ import android.content.pm.PackageManager
 import android.util.Log
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -14,6 +20,10 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
@@ -26,7 +36,7 @@ import com.example.lifelogger.utils.FileUtils
 
 private const val TAG = "AddEntryScreen"
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun AddEntryScreen(
     onBack: () -> Unit,
@@ -35,11 +45,23 @@ fun AddEntryScreen(
 ) {
     var title by remember { mutableStateOf(TextFieldValue("")) }
     var content by remember { mutableStateOf(TextFieldValue("")) }
-    var capturedImagePath by remember { mutableStateOf<String?>(null) }
+    var selectedTag by remember { mutableStateOf<String?>(null) }
+    
+    // Support multiple images
+    var capturedImagePaths by remember { mutableStateOf(listOf<String>()) }
     var capturedAudioPath by remember { mutableStateOf<String?>(null) }
 
     var showCamera by remember { mutableStateOf(false) }
     var showRecorder by remember { mutableStateOf(false) }
+
+    val tags = listOf(
+        "Love" to Color.Red,
+        "Freedom" to Color.Yellow,
+        "Stress" to Color(0xFFFFA500), // Orange
+        "Happy" to Color.Green,
+        "Calm" to Color(0xFFADD8E6), // Light Blue
+        "Sad" to Color.Black
+    )
 
     val snackbarHostState = remember { SnackbarHostState() }
     var snackbarMessage by remember { mutableStateOf<String?>(null) }
@@ -73,7 +95,9 @@ fun AddEntryScreen(
     ) { uri ->
         uri?.let {
             val path = FileUtils.copyUriToInternalStorage(context, it, "IMG")
-            capturedImagePath = path
+            path?.let { p ->
+                capturedImagePaths = capturedImagePaths + p
+            }
         }
     }
 
@@ -126,8 +150,8 @@ fun AddEntryScreen(
                         TextButton(
                             onClick = {
                                 val entryType = when {
-                                    capturedImagePath != null && capturedAudioPath != null -> EntryType.MIXED
-                                    capturedImagePath != null -> EntryType.IMAGE
+                                    capturedImagePaths.isNotEmpty() && capturedAudioPath != null -> EntryType.MIXED
+                                    capturedImagePaths.isNotEmpty() -> EntryType.IMAGE
                                     capturedAudioPath != null -> EntryType.AUDIO
                                     else -> EntryType.TEXT
                                 }
@@ -136,12 +160,13 @@ fun AddEntryScreen(
                                         title = title.text,
                                         content = content.text,
                                         entryType = entryType,
-                                        imagePath = capturedImagePath,
+                                        tag = selectedTag,
+                                        imagePaths = capturedImagePaths,
                                         audioPath = capturedAudioPath
                                     )
                                 )
                             },
-                            enabled = content.text.isNotBlank() || title.text.isNotBlank()
+                            enabled = content.text.isNotBlank() || title.text.isNotBlank() || capturedImagePaths.isNotEmpty() || capturedAudioPath != null
                         ) {
                             Text("Save")
                         }
@@ -175,58 +200,82 @@ fun AddEntryScreen(
                     minLines = 4
                 )
 
+                Text(text = "Select Tag", style = MaterialTheme.typography.titleMedium)
+                
+                FlowRow(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    tags.forEach { (tagName, tagColor) ->
+                        val isSelected = selectedTag == tagName
+                        FilterChip(
+                            selected = isSelected,
+                            onClick = { selectedTag = if (isSelected) null else tagName },
+                            label = { Text(tagName) },
+                            leadingIcon = if (isSelected) {
+                                { Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(18.dp)) }
+                            } else null,
+                            colors = FilterChipDefaults.filterChipColors(
+                                labelColor = if (isSelected) Color.White else tagColor,
+                                selectedLabelColor = if (tagColor == Color.Yellow || tagColor == Color(0xFFADD8E6)) Color.Black else Color.White,
+                                selectedContainerColor = tagColor
+                            ),
+                            border = FilterChipDefaults.filterChipBorder(
+                                enabled = true,
+                                selected = isSelected,
+                                borderColor = tagColor,
+                                selectedBorderColor = tagColor
+                            )
+                        )
+                    }
+                }
+
                 Text(text = "Add attachments", style = MaterialTheme.typography.titleMedium)
 
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    FilterChip(
-                        selected = false,
-                        onClick = { requestCamera() },
-                        label = { Text("📷 Camera") },
-                        enabled = capturedImagePath == null && capturedAudioPath == null
-                    )
+                    IconButton(onClick = { requestCamera() }) {
+                        Icon(Icons.Default.PhotoCamera, contentDescription = "Camera")
+                    }
 
-                    FilterChip(
-                        selected = capturedImagePath != null,
-                        onClick = { galleryLauncher.launch("image/*") },
-                        label = { Text("🖼️ Photo") },
-                        leadingIcon = if (capturedImagePath != null) {
-                            { Icon(Icons.Default.Check, contentDescription = null) }
-                        } else null,
-                        enabled = capturedAudioPath == null
-                    )
+                    IconButton(onClick = { galleryLauncher.launch("image/*") }) {
+                        Icon(Icons.Default.PhotoLibrary, contentDescription = "Gallery")
+                    }
 
-                    FilterChip(
-                        selected = capturedAudioPath != null,
-                        onClick = { requestAudio() },
-                        label = { Text("🎤 Voice") },
-                        leadingIcon = if (capturedAudioPath != null) {
-                            { Icon(Icons.Default.Check, contentDescription = null) }
-                        } else null,
-                        enabled = capturedImagePath == null
-                    )
+                    IconButton(onClick = { requestAudio() }) {
+                        Icon(Icons.Default.Mic, contentDescription = "Voice")
+                    }
                 }
 
-                capturedImagePath?.let { _ ->
-                    Surface(
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = MaterialTheme.shapes.medium,
-                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.2f)
+                // Multiple Image Preview
+                if (capturedImagePaths.isNotEmpty()) {
+                    Text(text = "Attached Images (${capturedImagePaths.size})", style = MaterialTheme.typography.labelMedium)
+                    LazyRow(
+                        modifier = Modifier.fillMaxWidth().height(100.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        Row(
-                            modifier = Modifier.padding(12.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text("🖼️ ", fontSize = MaterialTheme.typography.bodyLarge.fontSize)
-                            Text(
-                                text = "Image attached",
-                                style = MaterialTheme.typography.bodyMedium,
-                                modifier = Modifier.weight(1f)
-                            )
-                            IconButton(onClick = { capturedImagePath = null }) {
-                                Icon(Icons.Default.Close, contentDescription = "Remove", tint = MaterialTheme.colorScheme.error)
+                        items(capturedImagePaths) { path ->
+                            Box(modifier = Modifier.size(100.dp).clip(RoundedCornerShape(8.dp))) {
+                                val bitmap = FileUtils.loadImage(path)?.let {
+                                    android.graphics.BitmapFactory.decodeByteArray(it, 0, it.size)
+                                }
+                                if (bitmap != null) {
+                                    Image(
+                                        bitmap = bitmap.asImageBitmap(),
+                                        contentDescription = null,
+                                        modifier = Modifier.fillMaxSize(),
+                                        contentScale = ContentScale.Crop
+                                    )
+                                }
+                                IconButton(
+                                    onClick = { capturedImagePaths = capturedImagePaths - path },
+                                    modifier = Modifier.align(Alignment.TopEnd).size(24.dp).background(Color.Black.copy(alpha = 0.5f), CircleShape)
+                                ) {
+                                    Icon(Icons.Default.Close, contentDescription = "Remove", tint = Color.White, modifier = Modifier.size(16.dp))
+                                }
                             }
                         }
                     }
@@ -261,7 +310,7 @@ fun AddEntryScreen(
     if (showCamera) {
         CameraCapture(
             onImageCaptured = { path ->
-                capturedImagePath = path
+                capturedImagePaths = capturedImagePaths + path
                 showCamera = false
             },
             onDismiss = {

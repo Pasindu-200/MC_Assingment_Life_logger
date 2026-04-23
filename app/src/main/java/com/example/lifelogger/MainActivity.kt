@@ -46,7 +46,11 @@ class MainActivity : ComponentActivity() {
         SupabaseClient.init(applicationContext)
 
         setContent {
-            val isDarkMode = isSystemInDarkTheme()
+            val systemTheme = isSystemInDarkTheme()
+            // State to track if user explicitly chose dark mode
+            var userThemePreference by remember { mutableStateOf<Boolean?>(null) }
+            
+            val isDarkMode = userThemePreference ?: systemTheme
 
             LifeLoggerTheme(darkTheme = isDarkMode) {
                 Surface(
@@ -64,7 +68,9 @@ class MainActivity : ComponentActivity() {
                         navController = navController,
                         viewModel = viewModel,
                         isDarkMode = isDarkMode,
-                        onToggleDarkMode = { /* System theme - no toggle needed */ },
+                        onToggleDarkMode = { 
+                            userThemePreference = !isDarkMode
+                        },
                         onLoginSuccess = { userId ->
                             viewModel.setCurrentUser(userId)
                             viewModel.syncPendingEntries()

@@ -3,13 +3,15 @@ package com.example.lifelogger.ui.components
 import android.media.MediaPlayer
 import android.util.Log
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Audiotrack
-import androidx.compose.material.icons.filled.Pause
-import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -22,6 +24,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.example.lifelogger.data.model.Entry
 import com.example.lifelogger.data.model.EntryType
 import com.example.lifelogger.utils.FileUtils
@@ -34,6 +37,7 @@ private const val TAG = "EntryCard"
 fun EntryCard(
     entry: Entry,
     onClick: () -> Unit,
+    onDelete: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Card(
@@ -51,15 +55,59 @@ fun EntryCard(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                EntryTypeBadge(entry.entryType)
-                Text(
-                    text = formatDate(entry.createdAt),
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
-                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    EntryTypeBadge(entry.entryType)
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = formatDate(entry.createdAt),
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                    )
+                }
+                
+                // DELETE OPTION
+                IconButton(
+                    onClick = onDelete,
+                    modifier = Modifier.size(24.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Delete,
+                        contentDescription = "Delete entry",
+                        tint = MaterialTheme.colorScheme.error.copy(alpha = 0.7f),
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
             }
 
             Spacer(modifier = Modifier.height(8.dp))
+
+            // TAG DISPLAY
+            entry.tag?.let { tagName ->
+                val tagColor = when (tagName) {
+                    "Love" -> Color.Red
+                    "Freedom" -> Color.Yellow
+                    "Stress" -> Color(0xFFFFA500)
+                    "Happy" -> Color.Green
+                    "Calm" -> Color(0xFFADD8E6)
+                    "Sad" -> Color.Black
+                    else -> Color.Gray
+                }
+                val textColor = if (tagColor == Color.Yellow || tagColor == Color(0xFFADD8E6)) Color.Black else Color.White
+                
+                Surface(
+                    shape = RoundedCornerShape(4.dp),
+                    color = tagColor,
+                    modifier = Modifier.padding(bottom = 8.dp)
+                ) {
+                    Text(
+                        text = tagName,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = textColor,
+                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
 
             // Title
             if (entry.title.isNotBlank()) {
@@ -84,10 +132,20 @@ fun EntryCard(
                 )
             }
 
-            // Image preview
-            entry.imagePath?.let { path ->
+            // Image previews - updated to handle multiple images
+            if (entry.imagePaths.isNotEmpty()) {
                 Spacer(modifier = Modifier.height(8.dp))
-                ImagePreview(path)
+                LazyRow(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    items(entry.imagePaths) { path ->
+                        ImagePreview(
+                            imagePath = path,
+                            modifier = Modifier.size(120.dp)
+                        )
+                    }
+                }
             }
 
             // Audio player
@@ -199,7 +257,7 @@ private fun AudioPlayer(audioPath: String, modifier: Modifier = Modifier) {
             }
 
             Icon(
-                imageVector = Icons.Default.Audiotrack,  // ← Now works with proper import
+                imageVector = Icons.Default.Audiotrack,
                 contentDescription = "Audio",
                 tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
                 modifier = Modifier.size(24.dp)
@@ -238,14 +296,12 @@ private fun ImagePreview(imagePath: String, modifier: Modifier = Modifier) {
     }
 
     if (bitmap != null) {
-        Image(  // ← Now works with proper import
-            bitmap = bitmap.asImageBitmap(),  // ← Now works with proper import
+        Image(
+            bitmap = bitmap.asImageBitmap(),
             contentDescription = "Entry image",
             modifier = modifier
-                .fillMaxWidth()
-                .height(200.dp)
                 .clip(RoundedCornerShape(8.dp)),
-            contentScale = ContentScale.Crop  // ← Now works with proper import
+            contentScale = ContentScale.Crop
         )
     }
 }

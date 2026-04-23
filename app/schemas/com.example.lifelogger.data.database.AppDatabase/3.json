@@ -1,12 +1,12 @@
 {
   "formatVersion": 1,
   "database": {
-    "version": 1,
-    "identityHash": "81c4e40c60419905699b41f86a9debe5",
+    "version": 3,
+    "identityHash": "e92c261303163e367c87a7631d83267c",
     "entities": [
       {
         "tableName": "entries",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `title` TEXT NOT NULL, `content` TEXT NOT NULL, `entryType` TEXT NOT NULL, `tag` TEXT, `imagePath` TEXT, `audioPath` TEXT, `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, `isSynced` INTEGER NOT NULL, `serverId` TEXT, `userId` TEXT, PRIMARY KEY(`id`))",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `title` TEXT NOT NULL, `content` TEXT NOT NULL, `entryType` TEXT NOT NULL, `tag` TEXT, `imagePaths` TEXT NOT NULL, `audioPath` TEXT, `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, `isSynced` INTEGER NOT NULL, `serverId` TEXT, `userId` TEXT, PRIMARY KEY(`id`))",
         "fields": [
           {
             "fieldPath": "id",
@@ -39,10 +39,10 @@
             "notNull": false
           },
           {
-            "fieldPath": "imagePath",
-            "columnName": "imagePath",
+            "fieldPath": "imagePaths",
+            "columnName": "imagePaths",
             "affinity": "TEXT",
-            "notNull": false
+            "notNull": true
           },
           {
             "fieldPath": "audioPath",
@@ -94,7 +94,7 @@
     "views": [],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '81c4e40c60419905699b41f86a9debe5')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'e92c261303163e367c87a7631d83267c')"
     ]
   }
 }
