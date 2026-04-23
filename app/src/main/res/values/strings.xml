@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Life Logger</string>
+    <string name="login_title">Welcome Back</string>
+    <string name="login_subtitle">Capture your moments</string>
+    <string name="email_hint">Email</string>
+    <string name="password_hint">Password</string>
+    <string name="sign_in">Sign In</string>
+    <string name="skip">Continue without account</string>
+    <string name="add_entry">New Entry</string>
+    <string name="save">Save</string>
+    <string name="entry_title_hint">Title (optional)</string>
+    <string name="entry_content_hint">What\'s on your mind?</string>
+    <string name="attach_photo">🖼️ Photo</string>
+    <string name="attach_audio">🎤 Voice</string>
+    <string name="logout_confirm">Sign out?</string>
+    <string name="logout_message">You can still use the app offline. Sync will resume when you sign in again.</string>
+    <string name="cancel">Cancel</string>
+    <string name="sign_out">Sign out</string>
+    <string name="no_entries">No entries yet</string>
+    <string name="no_entries_hint">Tap the + button to capture your first moment</string>
+</resources>
