@@ -9,7 +9,6 @@ import com.example.lifelogger.data.model.toDto
 import com.example.lifelogger.data.repository.EntryRepository
 import com.example.lifelogger.data.supabase.SupabaseClient
 import com.example.lifelogger.utils.FileUtils
-import java.io.File
 
 class SyncWorker(
     appContext: Context,
@@ -34,56 +33,56 @@ class SyncWorker(
             
             for (entry in unsyncedEntries) {
                 try {
-                    Log.d("SyncWorker", "Syncing entry: ${entry.id}")
+                    if (entry.isDeleted) {
+                        // 1. HANDLE DELETION
+                        Log.d("SyncWorker", "Syncing deletion for: ${entry.id}")
+                        SupabaseClient.deleteEntry(entry.id).getOrThrow()
+                        
+                        // After cloud deletion, remove from local DB
+                        repository.hardDelete(entry)
+                        Log.d("SyncWorker", "Deleted from cloud and local: ${entry.id}")
+                    } else {
+                        // 2. HANDLE UPLOAD (INSERT/UPDATE)
+                        Log.d("SyncWorker", "Syncing upload for: ${entry.id}")
 
-                    // 1. Upload Images to Storage
-                    val remoteImageUrls = entry.imagePaths.map { localPath ->
-                        if (localPath.startsWith("http")) {
-                            localPath // Already remote
-                        } else {
-                            val bytes = FileUtils.loadImage(localPath)
-                            if (bytes != null) {
-                                val fileName = localPath.split("/").last()
-                                val uploadPath = "${entry.userId ?: "guest"}/images/${entry.id}_$fileName"
-                                SupabaseClient.uploadFile(SupabaseClient.FILES_BUCKET, uploadPath, bytes).getOrThrow()
-                            } else {
-                                localPath
+                        // Upload Images
+                        val remoteImageUrls = entry.imagePaths.map { localPath ->
+                            if (localPath.startsWith("http")) localPath
+                            else {
+                                val bytes = FileUtils.loadImage(localPath)
+                                if (bytes != null) {
+                                    val fileName = localPath.split("/").last()
+                                    val uploadPath = "${entry.userId ?: "guest"}/images/${entry.id}_$fileName"
+                                    SupabaseClient.uploadFile(SupabaseClient.FILES_BUCKET, uploadPath, bytes).getOrThrow()
+                                } else localPath
                             }
                         }
-                    }
 
-                    // 2. Upload Audio to Storage
-                    val remoteAudioUrl = entry.audioPath?.let { localPath ->
-                        if (localPath.startsWith("http")) {
-                            localPath
-                        } else {
-                            val bytes = FileUtils.loadAudio(localPath)
-                            if (bytes != null) {
-                                val fileName = localPath.split("/").last()
-                                val uploadPath = "${entry.userId ?: "guest"}/audio/${entry.id}_$fileName"
-                                SupabaseClient.uploadFile(SupabaseClient.FILES_BUCKET, uploadPath, bytes).getOrThrow()
-                            } else {
-                                localPath
+                        // Upload Audio
+                        val remoteAudioUrl = entry.audioPath?.let { localPath ->
+                            if (localPath.startsWith("http")) localPath
+                            else {
+                                val bytes = FileUtils.loadAudio(localPath)
+                                if (bytes != null) {
+                                    val fileName = localPath.split("/").last()
+                                    val uploadPath = "${entry.userId ?: "guest"}/audio/${entry.id}_$fileName"
+                                    SupabaseClient.uploadFile(SupabaseClient.FILES_BUCKET, uploadPath, bytes).getOrThrow()
+                                } else localPath
                             }
                         }
-                    }
 
-                    // 3. Create DTO with REMOTE urls
-                    val entryWithRemotePaths = entry.copy(
-                        imagePaths = remoteImageUrls,
-                        audioPath = remoteAudioUrl
-                    )
-                    
-                    val dto = entryWithRemotePaths.toDto()
-                    
-                    // 4. Sync to DB
-                    val syncResult = SupabaseClient.syncEntry(dto)
-                    val serverId = syncResult.getOrThrow()
-                    
-                    // 5. Mark as synced locally
-                    repository.markSynced(entry.id, serverId)
-                    Log.d("SyncWorker", "Successfully synced entry and media for: ${entry.id}")
-                    
+                        val entryWithRemotePaths = entry.copy(
+                            imagePaths = remoteImageUrls,
+                            audioPath = remoteAudioUrl
+                        )
+                        
+                        val dto = entryWithRemotePaths.toDto()
+                        val syncResult = SupabaseClient.syncEntry(dto)
+                        val serverId = syncResult.getOrThrow()
+                        
+                        repository.markSynced(entry.id, serverId)
+                        Log.d("SyncWorker", "Successfully synced entry: ${entry.id}")
+                    }
                 } catch (e: Exception) {
                     Log.e("SyncWorker", "Failed to sync entry ${entry.id}: ${e.message}")
                     allSuccessful = false

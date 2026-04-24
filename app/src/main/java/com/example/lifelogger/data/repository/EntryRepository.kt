@@ -13,7 +13,19 @@ class EntryRepository(
 
     suspend fun insert(entry: Entry) = entryDao.insertEntry(entry)
     suspend fun update(entry: Entry) = entryDao.updateEntry(entry)
-    suspend fun delete(entry: Entry) = entryDao.deleteEntry(entry)
+    
+    // Updated to mark for deletion instead of immediate removal
+    suspend fun delete(entry: Entry) {
+        if (entry.serverId == null) {
+            // If never synced to cloud, just delete locally
+            entryDao.deleteEntry(entry)
+        } else {
+            // Otherwise, mark for deletion so the worker can sync it
+            entryDao.markForDeletion(entry.id)
+        }
+    }
+    
+    suspend fun hardDelete(entry: Entry) = entryDao.deleteEntry(entry)
     suspend fun getById(id: String) = entryDao.getEntryById(id)
     suspend fun getUnsynced() = entryDao.getUnsyncedEntries()
     suspend fun markSynced(entryId: String, serverId: String) =

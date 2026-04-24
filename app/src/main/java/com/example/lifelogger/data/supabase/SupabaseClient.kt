@@ -44,6 +44,20 @@ object SupabaseClient {
     }
 
     /**
+     * Deletes an entry from Supabase.
+     */
+    suspend fun deleteEntry(entryId: String): Result<Unit> = withContext(Dispatchers.IO) {
+        runCatching {
+            client.postgrest["entries"].delete {
+                filter {
+                    eq("id", entryId)
+                }
+            }
+            Unit
+        }
+    }
+
+    /**
      * Fetches all entries for a specific user.
      */
     suspend fun fetchUserEntries(userId: String): Result<List<EntryDto>> = withContext(Dispatchers.IO) {

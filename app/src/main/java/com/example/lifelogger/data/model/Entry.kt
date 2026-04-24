@@ -8,7 +8,7 @@ import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import java.util.UUID
 
-// Room Entity - updated to support multiple images
+// Room Entity - updated to support multiple images and deletion flag
 @Entity(tableName = "entries")
 data class Entry(
     @PrimaryKey val id: String = UUID.randomUUID().toString(),
@@ -16,11 +16,12 @@ data class Entry(
     val content: String,
     val entryType: EntryType,
     val tag: String? = null,
-    val imagePaths: List<String> = emptyList(), // Changed to List
+    val imagePaths: List<String> = emptyList(),
     val audioPath: String? = null,
     val createdAt: Long = System.currentTimeMillis(),
     val updatedAt: Long = System.currentTimeMillis(),
     val isSynced: Boolean = false,
+    val isDeleted: Boolean = false, // Flag for "Soft Delete" to sync with cloud
     val serverId: String? = null,
     val userId: String? = null
 )
@@ -38,7 +39,7 @@ class Converters {
     }
 }
 
-// Separate serializable model for Supabase (avoids kapt conflicts)
+// Separate serializable model for Supabase
 @Serializable
 data class EntryDto(
     val id: String,
@@ -47,7 +48,7 @@ data class EntryDto(
     val content: String,
     val entry_type: String,
     val tag: String?,
-    val image_urls: List<String>, // Updated for multiple images
+    val image_urls: List<String>,
     val audio_url: String?,
     val created_at: String,
     val updated_at: String

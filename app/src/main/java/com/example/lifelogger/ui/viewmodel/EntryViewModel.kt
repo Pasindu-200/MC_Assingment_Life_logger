@@ -46,7 +46,7 @@ class EntryViewModel(
         viewModelScope.launch {
             repository.update(entry.copy(
                 updatedAt = System.currentTimeMillis(),
-                isSynced = false // Reset sync flag on update
+                isSynced = false
             ))
             scheduleSync()
         }
@@ -55,6 +55,8 @@ class EntryViewModel(
     fun deleteEntry(entry: Entry) {
         viewModelScope.launch {
             repository.delete(entry)
+            // Trigger sync after marking for deletion
+            scheduleSync()
         }
     }
 
